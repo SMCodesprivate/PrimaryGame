@@ -1,0 +1,150 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Meu primeiro jogo multiplayer</title>
+	<style>
+		body {
+			background-color: #fafafa;
+			/*padding: .1px !important;*/
+		}
+		#screen {
+			border: 1px solid #CCC;
+			box-shadow: 0 0 10px #999999;
+			background-color: #ffffff;
+			image-rendering: pixelated;
+			image-rendering: crisp-edges;
+			image-rendering: -moz-crisp-edges;
+			width: 635px;
+			height: 635px;
+			flex: 1;
+		}
+		#gd {
+			display: flex;
+			flex-direction: row;
+		}
+		#score {
+			flex: 1;
+			height: 400px;
+			margin-left: 20px !important;
+			margin-right: 20px !important;
+			margin-bottom: 0;
+			position: relative;
+		}
+		#table_title {
+			width: 100%;
+		}
+		#title {
+			color: #555;
+			font-size: 40px;
+			font-weight: 900;
+			margin-bottom: 150px !important;
+		}
+		.bar {
+			width: 94%;
+			margin: auto;
+			height: 2px;
+			background-color: #555;
+		}
+		#table {
+			width: 92%;
+			margin: auto;
+		}
+		#table tr td {
+			font-size: 20px;
+			font-weight: 600;
+		}
+		.right {
+			text-align: end !important;
+		}
+	</style>
+	<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+	<div id="gd">
+		<canvas id="screen" width="30" height="30"></canvas>
+		<div id="score">
+			<table id="table_title">
+				<tr id="title">
+					<td>Top 10 jogadores<td>
+						<td class="right">Pontos<td>
+						</tr>
+					</table>
+					<div class="bar"></div>
+					<br/>
+			<table id="table"><!-- 
+				<tr>
+					<td>SMCodes<td>
+					<td class="right">10<td>
+				</tr>
+				<tr>
+					<td>Mooona<td>
+					<td class="right">2<td>
+					</tr> -->
+				</table>
+			</div>
+		</div>
+		<audio id="collect" src="collect.mp3"></audio>
+		<audio id="100-collect" src="100-collect.mp3"></audio>
+		<script type="module">
+			import createKeyboardListener from './keyboard-listener.js';
+			import createGame from './game.js';
+			import renderGame from './render-game.js';
+
+			const game = createGame();
+			const keyboardListener = createKeyboardListener(document);
+			const socket = io();
+
+			socket.on('connect', () => {
+				const playerId = socket.id;
+				const screen = document.getElementById('screen');
+				renderGame(screen, game, requestAnimationFrame, playerId);
+			});
+
+			socket.on('action', (state) => {
+				const playerId = socket.id;
+				game.setState(state);
+
+				keyboardListener.registerPlayerId(playerId);
+				keyboardListener.subscribe(game.movePlayer);
+				keyboardListener.subscribe((command) => {
+					socket.emit('move-player', command);
+				});
+			});
+
+			socket.on('add-player', (command) => {
+				game.addPlayer(command);
+			});
+
+			socket.on('remove-player', (command) => {
+				game.removePlayer(command);
+			});
+
+			socket.on('move-player', (command) => {
+
+				const playerId = socket.id;
+
+				if(playerId !== command.playerId) {
+					game.movePlayer(command);
+				}
+			});
+
+			socket.on('add-fruit', (command) => {
+				game.addFruit(command);
+			});
+
+			function tocar(sound) {
+				const to = document.getElementById(sound);
+				to.volume = 1;
+				to.play();
+				to.play();
+			}
+
+			socket.on('remove-fruit', (command) => {
+				game.removeFruit(command);
+				const { points } = command.player;
+				(points % 100) ? tocar('collect') : tocar('100-collect');
+			});
+		</script>
+	</body>
+	</html>
